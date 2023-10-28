@@ -19,6 +19,8 @@ using namespace std;
 const double pi = acos(-1);
 
 // A class to compute the objective function of the network formation model using censored Poisson
+// In this implementation, we refer to the first stage estimator as "rho" instead 
+// of "beta," as indicated in the paper.
 class CENetPoi: public MFuncGrad
 {
 private:

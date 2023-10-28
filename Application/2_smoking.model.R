@@ -10,6 +10,7 @@ library(Matrix)
 library(PartialNetwork)
 
 ##################### load data
+Rcpp::sourceCpp("smoking-functions.cpp")
 load(file = "AHdata.rda")
 
 exp.var  <- va.names[-length(va.names)]
@@ -49,6 +50,8 @@ write.csv(cbind(coef = sgmm$estimates, se = sqrt(diag(sgmm$cov))), file = "gmm.c
 # we run a regression for the number of declared female friends and another
 # regression on the number of declared male friends.
 # We include school fixed effects
+# In this implementation, we refer to the first stage estimator as "rho" instead 
+# of "beta," as indicated in the paper.
 
 ########### Number of declared female friends
 sel     <- (Xlogit[,"female.j"] == 1)
