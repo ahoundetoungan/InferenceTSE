@@ -63,7 +63,7 @@ fsim   <- function(N, S = 2, k = 1e3){#S is the number of returns and k is kappa
                 method.args = list(eps = 1e-13, zero.tol = 1e-13, r = 4, v = 2))})
       bHES    <- solve(bdiag(HES))
       ## Covariance matrix
-      MCOt    <- N * bHES %*% fHAC(do.call(cbind, JAC), N, r = 6*S, kernel = 2, st = 1) %*% t(bHES)
+      MCOt    <- N * bHES %*% fHAC(do.call(cbind, JAC), N, r = 6*S) %*% t(bHES)
       
       ## Second stage
       # Estimation
@@ -72,7 +72,7 @@ fsim   <- function(N, S = 2, k = 1e3){#S is the number of returns and k is kappa
       
       # Naive standard errors
       An      <- -sum(d2lclaytonpdf(u = pzh, ltheta = lth, dim = S))/N
-      snai1   <- c(sqrt(fHAC(d1lclaytonpdf(u = pzh, ltheta = lth, dim = S), N))/An)
+      snai1   <- c(sqrt(fHAC(d1lclaytonpdf(u = pzh, ltheta = lth, dim = S), N, r = 1))/An)
       
       # psi
       coet    <- mvrnorm(n = k, mu = c(apply(coeh, 2, fbetat)), Sigma = MCOt)
@@ -82,7 +82,7 @@ fsim   <- function(N, S = 2, k = 1e3){#S is the number of returns and k is kappa
         filterz(N, coes[[s]][x, 3:5], coes[[s]][x, 1:2], dt[,s])})})
       pzs     <- lapply(1:k, function(x) sapply(1:S, function(s) pt(zs[[x]][,s]/sqrt(1 - 2/nus[x, s]), df = nus[x, s])))
       En      <- sapply(1:k, function(x) sum(d1lclaytonpdf(u = pzs[[x]], ltheta = lth, dim = S)))/sqrt(N)
-      Vn      <- sapply(1:k, function(x) fHAC(d1lclaytonpdf(u = pzs[[x]], ltheta = lth, dim = S), N, r = 6*S, kernel = 2, st = 1))
+      Vn      <- sapply(1:k, function(x) fHAC(d1lclaytonpdf(u = pzs[[x]], ltheta = lth, dim = S), N, r = 6*S))
       psi     <- sapply(1:k, function(x) (sqrt(Vn[x])*rnorm(1) + En[x])/An)
       
       # Standard errors
@@ -178,4 +178,4 @@ dataplot <- bind_rows(lapply(1:4, fdata))
     facet_wrap(. ~ type, scales = "free", labeller = label_parsed, dir="v", ncol = 4))
 
 # export figures
-ggsave("simu:garch.pdf", plot = graph, device = "pdf", path = "Simulations", width = 10, height = 2.5)
+ggsave("simu:garch.pdf", plot = graph, device = "pdf", width = 10, height = 2.5)

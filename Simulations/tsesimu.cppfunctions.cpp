@@ -285,13 +285,12 @@ double kQS(double x){
 arma::mat fHAC(const arma::mat& V, 
                const int& n, //nrow of V
                const int& r = 1, //number of parameters estimated
-               const int& kernel = 2,
-               const int& st = 0){
-  int ST = st;
+               const int& kernel = 5, //Quadratic spectral kernel
+               const int& st = 0){ //default bandwith = ceil(0.75*pow(n, 1.0/3))
+  double ST = st;
   if(st == 0){
     ST  = ceil(0.75*pow(n, 1.0/3));
   }
-
   arma::mat out = V.t()*V/n;
   arma::mat tp;
 

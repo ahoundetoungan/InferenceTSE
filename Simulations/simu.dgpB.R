@@ -156,5 +156,5 @@ dataplot <- bind_rows(lapply(1:4, fdata))
     facet_wrap(. ~ type, scales = "free", labeller = label_parsed, dir="v", ncol = 4))
 
 # export figures
-ggsave("simu:poisson.pdf", plot = graph, device = "pdf", path = "Simulations", width = 10, height = 5)
+ggsave("simu:poisson.pdf", plot = graph, device = "pdf", width = 10, height = 5)
 
