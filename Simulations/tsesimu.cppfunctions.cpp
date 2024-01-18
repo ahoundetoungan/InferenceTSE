@@ -12,7 +12,10 @@ double pi = acos(-1);
 // [[Rcpp::export]]
 // This function computes the cdf at x taking data as simulation from the distribution
 // n in the length of data and k the length of x
-arma::vec fcdf(arma::vec& data, arma::vec& x, int& n, int& k){
+arma::vec fcdf(const arma::vec& data, 
+               arma::vec& x, 
+               int& n, 
+               int& k){
   arma::vec out(k, arma::fill::zeros);
   for(int i(0); i < n; ++ i){
     out.elem(arma::find(data(i) <= x)) += 1;
