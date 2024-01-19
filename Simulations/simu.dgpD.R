@@ -285,7 +285,7 @@ ggsave("simu:garch.pdf", path = "Simulations", plot = wrap_plots(graph1, ncol = 
        device = "pdf", width = 10, height = 2.5)
 ggsave("simu:garchR.pdf", path = "Simulations", plot = wrap_plots(graph2, ncol = length(nvec)), 
        device = "pdf", width = 10, height = 2.5)
-ggsave("simu:garch.median.pdf", path = "Simulations", plot = wrap_plots(graph2, ncol = length(nvec)), 
+ggsave("simu:garch.median.pdf", path = "Simulations", plot = wrap_plots(graph3, ncol = length(nvec)), 
        device = "pdf", width = 10, height = 2.5)
 
 # Bias
