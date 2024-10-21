@@ -107,7 +107,7 @@ arma::vec fbeta(const arma::vec& betat){
   double omega   = exp(betat(2));
   double alpha1  = 1/(1 + exp(-betat(3)));
   double beta1   = (1 - alpha1)/(1 + exp(-betat(4)));
-
+  
   
   arma::vec out;
   if(betat.n_elem == 6){
@@ -121,66 +121,64 @@ arma::vec fbeta(const arma::vec& betat){
 }
 
 
-// Thus function compute The garch(1, 1) likelihood for each i with student distribution
+// This function computes The garch(1, 1) likelihood for each i with student distribution
 //[[Rcpp::export]]
 arma::vec fllhigarcht(const arma::vec& betat,
-                     const int &N,
-                     const arma::vec& dt){
+                      const int &N,
+                      const arma::vec& dt){
   arma::vec beta = fbeta(betat);
   double nu      = beta(5);
   double scal    = sqrt(nu/(nu - 2));
   double lscal   = log(scal);
-  double tp      = log(tgamma((nu + 1.0)/2.0)) - 0.5*log(pi*nu) - log(tgamma(nu/2.0));
   arma::vec lh(N);
   
   // Compute sigma and z
   double h = beta(2)/(1 - beta(3) - beta(4));
   double z = (dt(0) - beta(0)/(1 - beta(1)))/sqrt(h);
-  lh(0)    = tp - 0.5*(log(h) + (nu + 1.0)*log(1 + pow(scal*z, 2)/nu));
+  lh(0)    = R::dt(scal*z, nu, 1) + lscal - 0.5*log(h);
   for(int i(1); i < N; i++){
     h      = beta(2) + beta(3)*pow(z, 2)*h + beta(4)*h;
     z      = (dt(i) - beta(0) - beta(1)*dt(i-1))/sqrt(h);
-    lh(i)  = tp + lscal - 0.5*(log(h) + (nu + 1.0)*log(1 + pow(scal*z, 2)/nu));
+    lh(i)  = R::dt(scal*z, nu, 1) + lscal - 0.5*log(h);
   }
   return lh;
 }
 
 
-// Thus function compute minus likelihood of garch(1, 1)
+// This function computes minus likelihood of garch(1, 1)
 //[[Rcpp::export]]
 double fllhgarcht(const arma::vec& betat,
-                 const int &N,
-                 const arma::vec& dt){
+                  const int &N,
+                  const arma::vec& dt){
   return -sum(fllhigarcht(betat, N, dt));
 }
 
-// Thus function compute The garch(1, 1) likelihood for each i with normal distribution
+// This function computes The garch(1, 1) likelihood for each i with normal distribution
 //[[Rcpp::export]]
 arma::vec fllhigarchn(const arma::vec& betat,
-                     const int &N,
-                     const arma::vec& dt){
+                      const int &N,
+                      const arma::vec& dt){
   arma::vec beta = fbeta(betat);
-  double tp      = - 0.5*log(2*pi);
   arma::vec lh(N);
   
   // Compute sigma and z
   double h = beta(2)/(1 - beta(3) - beta(4));
   double z = (dt(0) - beta(0)/(1 - beta(1)))/sqrt(h);
-  lh(0)    = tp - 0.5*(log(h) + pow(z, 2));
+  lh(0)    = R::dnorm4(z, 0, 1, 1)- 0.5*log(h);
   for(int i(1); i < N; i++){
     h      = beta(2) + beta(3)*pow(z, 2)*h + beta(4)*h;
     z      = (dt(i) - beta(0) - beta(1)*dt(i-1))/sqrt(h);
-    lh(i)  = tp - 0.5*(log(h) + pow(z, 2));
+    lh(i)  = R::dnorm4(z, 0, 1, 1)- 0.5*log(h);
   }
   return lh;
 }
 
 
-// Thus function compute minus likelihood of garch(1, 1)
+// This function computes minus likelihood of garch(1, 1)
 //[[Rcpp::export]]
 double fllhgarchn(const arma::vec& betat,
-                 const int &N,
-                 const arma::vec& dt){
+                  const int &N,
+                  const arma::vec& dt){
   return -sum(fllhigarchn(betat, N, dt));
 }
 
@@ -200,6 +198,48 @@ arma::mat fcovbetat(const arma::vec& beta,
     jac(tp + 5, tp + 5) = 1/(beta(tp + 5) - 2);
   }
   return jac*covbeta*jac.t();
+}
+
+// This function computes cdf of yi for each i with the t distribution
+//[[Rcpp::export]]
+arma::vec fGigarcht(const arma::vec& betat,
+                    const int &N,
+                    const arma::vec& dt){
+  arma::vec beta = fbeta(betat);
+  double nu      = beta(5);
+  double scal    = sqrt(nu/(nu - 2));
+  arma::vec out(N);
+  
+  // Compute sigma and z
+  double h = beta(2)/(1 - beta(3) - beta(4));
+  double z = (dt(0) - beta(0)/(1 - beta(1)))/sqrt(h);
+  out(0)   = R::pt(scal*z, nu, 1, 0);
+  for(int i(1); i < N; i++){
+    h      = beta(2) + beta(3)*pow(z, 2)*h + beta(4)*h;
+    z      = (dt(i) - beta(0) - beta(1)*dt(i-1))/sqrt(h);
+    out(i) = R::pt(scal*z, nu, 1, 0);
+  }
+  return out;
+}
+
+// This function computes cdf of yi for each i with normal distribution
+//[[Rcpp::export]]
+arma::vec fGigarchn(const arma::vec& betat,
+                    const int &N,
+                    const arma::vec& dt){
+  arma::vec beta = fbeta(betat);
+  arma::vec out(N);
+  
+  // Compute sigma and z
+  double h = beta(2)/(1 - beta(3) - beta(4));
+  double z = (dt(0) - beta(0)/(1 - beta(1)))/sqrt(h);
+  out(0)   = R::pnorm5(z, 0, 1, 1, 0);
+  for(int i(1); i < N; i++){
+    h      = beta(2) + beta(3)*pow(z, 2)*h + beta(4)*h;
+    z      = (dt(i) - beta(0) - beta(1)*dt(i-1))/sqrt(h);
+    out(i) = R::pnorm5(z, 0, 1, 1, 0);
+  }
+  return out;
 }
 
 
@@ -229,7 +269,7 @@ arma::vec d1lclaytonpdf(arma::mat& u, double& ltheta, int& dim){
   arma::mat uthe = pow(u, -theta);
   arma::vec tmp2 = sum(uthe, 1) - dim + 1;
   return ((dim + 1/theta)*sum(uthe%lu, 1)/tmp2 - sum(lu, 1) + 
-    sum(tmp1/(tmp1*theta + 1)) + log(tmp2)/pow(theta, 2))*theta;
+          sum(tmp1/(tmp1*theta + 1)) + log(tmp2)/pow(theta, 2))*theta;
 }  
 
 //[[Rcpp::export]]
@@ -245,9 +285,24 @@ arma::vec d2lclaytonpdf(arma::mat& u, double& ltheta, int& dim){
   arma::vec tmp4 = sum(uthl%lu, 1);
   arma::vec tmp5 = sum(pow(uthl, 2), 1);
   return ((dim + 1/theta)*(pow(tmp3/tmp2, 2) - tmp4/tmp2) - 
-    sum(pow(tmp1, 2)/pow(tmp1*theta + 1, 2)) - 2*tmp3/(pow(theta, 2)*tmp2) -
-    2*log(tmp2)/pow(theta, 3))*pow(theta, 2) + d1lclaytonpdf(u, ltheta, dim)*theta;
+          sum(pow(tmp1, 2)/pow(tmp1*theta + 1, 2)) - 2*tmp3/(pow(theta, 2)*tmp2) -
+          2*log(tmp2)/pow(theta, 3))*pow(theta, 2) + d1lclaytonpdf(u, ltheta, dim)*theta;
 }   
+
+
+//[[Rcpp::export]]
+//Second derivative of claytonpdf for dimension n with respect to theta and u
+arma::mat dud1lclaytonpdf(arma::mat& u, double& ltheta, int& dim){
+  double theta    = exp(ltheta);
+  arma::mat lu    = log(u);
+  arma::mat uthe  = pow(u, -theta);
+  arma::mat utheo = pow(u, -theta - 1.0);
+  arma::vec tmp2  = sum(uthe, 1) - dim + 1;
+  arma::mat tmp3  = utheo.each_col()%((theta*dim + 1)*sum(uthe%lu, 1)/arma::square(tmp2) - 1/(theta*tmp2));
+  arma::mat tmp4  = (utheo.each_col()%((dim + 1/theta)/tmp2))%(1 - theta*lu);
+  return (-1/u + tmp3 + tmp4)*theta;
+}   
+
 
 //HAC estimation 
 //Andrews, D. W. (1991). Heteroskedasticity and autocorrelation consistent covariance matrix estimation. 
@@ -277,6 +332,8 @@ double kTH(double x){
   return 0;
 }
 
+
+//
 double kQS(double x){
   double pix  = pi*x;
   double tmp1 = 12*pow(pix, 2);
@@ -296,7 +353,7 @@ arma::mat fHAC(const arma::mat& V,
   }
   arma::mat out = V.t()*V/n;
   arma::mat tp;
-
+  
   switch(kernel)
   {
   case 1:
@@ -331,4 +388,52 @@ arma::mat fHAC(const arma::mat& V,
     break;
   }
   return ((double)n/(n - r))*out;
+}
+
+//[[Rcpp::export]]
+//This function compute weight for randomForest
+arma::mat comp_weights(const arma::mat& lnew,
+                       const arma::mat& ltrain,
+                       const arma::mat& bagtree,
+                       const int& ntrain,
+                       const int& nnew,
+                       const int& ntree){
+  arma::mat out(ntrain, nnew, arma::fill::zeros);
+  for(int t(0); t < ntree; ++ t){
+    arma::umat tp1(ntrain, nnew);
+    for(int s(0); s < nnew; ++ s){
+      tp1.col(s) = (ltrain.col(t) == lnew(s, t));
+    }
+    arma::mat tp2(arma::conv_to<arma::mat>::from(tp1));
+    out += arma::normalise(tp2.each_col()%bagtree.col(t), 1, 0);
+  }
+  return out.t()/ntree;
+}
+
+/***R
+# Function to calculate weights for a given new observation x
+fweights  <- function(model, train_x, new_x) {
+  # Get leaf nodes for the new data point across all trees
+  leaves_new   <- attr(predict(model, newdata = new_x, nodes = TRUE), "nodes")
+
+  # Get leaf nodes for all training data
+  leaves_train <- attr(predict(model, newdata = train_x, nodes = TRUE),"nodes")
+
+  # Weights
+  comp_weights(lnew = leaves_new, ltrain = leaves_train, bagtree = model$inbag,
+               ntrain = nrow(train_x), nnew = nrow(new_x), ntree = model$ntree)
+}
+*/
+
+//[[Rcpp::export]]
+//This function compute many randomForest estimator by sampling the trees
+arma::mat fsimRForest(const arma::mat& treepredict, 
+                      const int& ntree,
+                      const int& kappa,
+                      const int& n){
+  arma::mat out(n, kappa);
+  for(int s(0); s < kappa; ++ s){
+    out.col(s) = mean(treepredict.cols(randi<uvec>(ntree, distr_param(0, ntree - 1))), 1);
+  }
+  return out;
 }

@@ -38,10 +38,6 @@ fsim   <- function(N, k = 1e3){# k is kappa in the paper
   step2   <- summary(lm(Y ~ -1 + bhat))
   thetah  <- step2$coefficients[,"Estimate"]
   
-  # Naive standard errors
-  cothe   <- solve(sum(bhat*bhat))^2 * crossprod(bhat*step2$residuals) 
-  sdnai   <- sqrt(diag(cothe))*sqrt(N)
-  
   # psi
   bhats   <- Z %*% t(mvrnorm(n = k, mu = gamahat, Sigma = covgamh))
   An      <- 2*sum(bhat^2)/N
@@ -54,7 +50,6 @@ fsim   <- function(N, k = 1e3){# k is kappa in the paper
   
   list(delta  = sqrt(N)*(thetah - theta0),
        psi    = psi,
-       sdnai  = sdnai,
        sderr  = sderr)
 }
 
@@ -82,15 +77,13 @@ fdata   <- function(s){
   Nsl   <- ifelse(Ns < 1000, Ns, paste0(Ns/1000, ",000"))
   F0    <- fcdf(sapply(datas, function(x) x$delta), t, sim, lt)
   Fh    <- rowMeans(do.call(cbind, mclapply(datas, function(x) fcdf(x$psi, t, k, lt), mc.cores = 15L)))
-  H1    <- rowMeans(do.call(cbind, mclapply(datas, function(x) pnorm(t, 0, x$sdnai), mc.cores = 11L)))
-  H2    <- rowMeans(do.call(cbind, mclapply(datas, function(x) pnorm(t, 0, x$sderr), mc.cores = 11L)))
+  H     <- rowMeans(do.call(cbind, mclapply(datas, function(x) pnorm(t, 0, x$sderr), mc.cores = 11L)))
   
   data.frame(s    = s,
              t    = t,
              F0   = F0,
              Fh   = Fh,
-             H1   = H1,
-             H2   = H2,
+             H    = H,
              N    = Ns,
              parm = "theta0",
              type = rep(s, lt))  %>% 
@@ -101,32 +94,28 @@ dataplot <- bind_rows(lapply(1:2, fdata))
 
 # Distances
 (outdist <- dataplot %>% group_by(parm, N) %>% 
-    summarise(across(c("H1", "H2", "Fh"), ~ sum(abs(.x - F0))*(max(t) - min(t))/length(t))))
+    summarise(across(c("H", "Fh"), ~ sum(abs(.x - F0))*(max(t) - min(t))/length(t))))
 
 # CDF of Delta
 graph         <- list()
 for (k in 1:length(nvec)) {
   distF       <- format(round(outdist$Fh[k], 3), nsmall = 3)
-  distH1      <- format(round(outdist$H1[k], 3), nsmall = 3)
-  distH2      <- format(round(outdist$H2[k], 3), nsmall = 3)
+  distH       <- format(round(outdist$H[k], 3), nsmall = 3)
   graph[[k]]  <- ggplot(dataplot %>% filter(t >= -4, t <= 4, s == k), aes(x = t, y = F0)) + theme_bw() + 
     geom_line(aes(col = "A", lty = "A")) + 
     geom_line(aes(y = Fh, col = "B", lty = "B")) + 
-    geom_line(aes(y = H1, col = "C", lty = "C")) + 
-    geom_line(aes(y = H2, col = "D", lty = "D")) + 
+    geom_line(aes(y = H, col = "C", lty = "C")) + 
     facet_wrap(. ~ type, scales = "free", labeller = label_parsed) +
     xlab("") + 
     ylab(ifelse(k >= 2, "", "Probability")) + 
-    scale_colour_manual("", values = c("black", "#e01b89", "#1b1be0", "#1b1be0"), 
+    scale_colour_manual("", values = c("black", "#e01b89", "#1b1be0"), 
                         labels = c("A" = expr(F[0]), 
                                    "B" = expr(paste(hat(F)[n], " (", !!distF, ")")), 
-                                   "C" = expr(paste(hat(H)[1], " (", !!distH1, ")")),
-                                   "D" = expr(paste(hat(H)[2], " (", !!distH2, ")")))) + 
-    scale_linetype_manual("", values = c("A" = 1, "B" = 2, "C" = 3, "D" = 4),
+                                   "C" = expr(paste(hat(H)[n], " (", !!distH, ")")))) + 
+    scale_linetype_manual("", values = c("A" = 1, "B" = 2, "C" = 3),
                           labels = c("A" = expr(F[0]), 
                                      "B" = expr(paste(hat(F)[n], " (", !!distF, ")")), 
-                                     "C" = expr(paste(hat(H)[1], " (", !!distH1, ")")),
-                                     "D" = expr(paste(hat(H)[2], " (", !!distH2, ")")))) +
+                                     "C" = expr(paste(hat(H)[n], " (", !!distH, ")")))) +
     theme(legend.position = c(0.22, 0.8), legend.text.align = 0,
           legend.background = element_rect(fill='transparent'),
           legend.text = element_text(size = 8),

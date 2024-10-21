@@ -2,8 +2,8 @@
 # Estimations are performed in parallel to enhance efficiency.
 
 ## Add your working directory
-proot <- c("~/Dropbox/2-steps M estimator", 
-           "~/Dropbox/2StageInference")
+proot <- c("~/Dropbox/Academy/1.Papers/2-steps Estimation/2-steps M estimator",
+           "~/2StageInference")
 root  <- sapply(proot, dir.exists)
 root  <- proot[root][1]
 setwd(root)
@@ -55,8 +55,8 @@ fsim      <- function(N, k){# k is kappa in the paper
       step2   <- summary(glm(y ~ phat, data = data, family = poisson(link = "log")))
       thetah  <- step2$coefficients[,"Estimate"]
       
-      # Naive standard errors
-      sdnai   <- step2$coefficients[,"Std. Error"]*sqrt(N)
+      # # Naive standard errors
+      # sdnai   <- step2$coefficients[,"Std. Error"]*sqrt(N)
       
       # psi
       tmp     <- solve(crossprod(Zbs1))
@@ -76,7 +76,7 @@ fsim      <- function(N, k){# k is kappa in the paper
       sderr   <- sqrt(diag(sderr))
       
       # Bias reduction
-      thetahs  <- thetah - solve(An, apply(En, 1, mean))/sqrt(N)
+      thetahs <- thetah - solve(An, apply(En, 1, mean))/sqrt(N)
       lhat    <- c(exp(mhat %*% thetahs)) #lambdahat
       lhats   <- sapply(mhats, function(x) c(exp(x %*% thetahs))) #lambdahat_s
       An      <- -crossprod(mhat, mhat*lhat)/N
@@ -86,13 +86,12 @@ fsim      <- function(N, k){# k is kappa in the paper
       psis    <- sapply(1:k, function(x) solve(An, t(chol(Vh)) %*% rnorm(2) + En[,x] - Omega))
       
       list(delta   = sqrt(N)*(thetah - theta0),
-                      deltas  = sqrt(N)*(thetahs - theta0),
-                      psi     = psi,
-                      psis    = psis,
-                      sdnai   = sdnai,
-                      sderr   = sderr,
-                      thetah  = thetah,
-                      thetahs = thetahs)
+           deltas  = sqrt(N)*(thetahs - theta0),
+           psi     = psi,
+           psis    = psis,
+           sderr   = sderr,
+           thetah  = thetah,
+           thetahs = thetahs)
     },
     error = function(N){ 
       NULL
@@ -114,14 +113,14 @@ out2   <- mclapply(1:sim, function(...) fsim(nvec[2], k), mc.cores = 15L)
 out3   <- mclapply(1:sim, function(...) fsim(nvec[3], k), mc.cores = 15L)
 out4   <- mclapply(1:sim, function(...) fsim(nvec[4], k), mc.cores = 15L)
 out    <- list(out1, out2, out3, out4)
-saveRDS(out, file = "Simulations/simu:poisson.RDS")
+saveRDS(out, file = "Simulations/simu.poisson.RDS")
 
 # Plot CDFs
 # The values at which the CDF are evaluated
 t        <- seq(-30, 24, 0.001)
 lt       <- length(t)
 
-out      <- readRDS("Simulations/simu:poisson.RDS")
+out      <- readRDS("Simulations/simu.poisson.RDS")
 
 fdata    <- function(s){
   Ns     <- nvec[s]
@@ -135,8 +134,7 @@ fdata    <- function(s){
   F0s    <- apply(sapply(datas, function(x) x$deltas), 1, function(x) fcdf(x, t, sim, lt))
   Fh     <- sapply(1:2, function(x1) rowMeans(do.call(cbind, mclapply(datas, function(x2) fcdf(x2$psi[x1,], t, k, lt), mc.cores = 15L))))
   Fhs    <- sapply(1:2, function(x1) rowMeans(do.call(cbind, mclapply(datas, function(x2) fcdf(x2$psis[x1,], t, k, lt), mc.cores = 15L))))
-  H1     <- sapply(1:2, function(x1) rowMeans(do.call(cbind, mclapply(datas, function(x2) pnorm(t, 0, x2$sdnai[x1]), mc.cores = 11L))))
-  H2     <- sapply(1:2, function(x1) rowMeans(do.call(cbind, mclapply(datas, function(x2) pnorm(t, 0, x2$sderr[x1]), mc.cores = 11L))))
+  H      <- sapply(1:2, function(x1) rowMeans(do.call(cbind, mclapply(datas, function(x2) pnorm(t, 0, x2$sderr[x1]), mc.cores = 11L))))
   
   
   data.frame(s    = rep((2*s -1):(2*s), each = lt),
@@ -149,15 +147,14 @@ fdata    <- function(s){
              F0s  = c(F0s[,1], F0s[,2]),
              Fh   = c(Fh[,1], Fh[,2]),
              Fhs  = c(Fhs[,1], Fhs[,2]),
-             H1   = c(H1[,1], H1[,2]),
-             H2   = c(H2[,1], H2[,2]))  %>% 
+             H    = c(H[,1], H[,2]))  %>% 
     mutate(type   = factor(type, labels = c(expression(paste(sqrt(n)*(hat(theta)["n,1"] - theta["0,1"]), 
                                                              ", ", n, " = ", !!Nsl, ", ", n, "*", " = ", !!nzl)), 
                                             expression(paste(sqrt(n)*(hat(theta)["n,2"] - theta["0,2"]), 
                                                              ", ", n, " = ", !!Nsl, ", ", n, "*", " = ", !!nzl)))),
-           typec  = factor(type, labels = c(expression(paste(sqrt(n)*(hat(theta)["n,1"]^{"*"} - theta["0,1"]), 
+           types  = factor(type, labels = c(expression(paste(sqrt(n)*(theta[paste(n, ",", kappa, ",1")]^{"*"} - theta["0,1"]), 
                                                              ", ", n, " = ", !!Nsl, ", ", n, "*", " = ", !!nzl)), 
-                                            expression(paste(sqrt(n)*(hat(theta)["n,2"]^{"*"} - theta["0,2"]), 
+                                            expression(paste(sqrt(n)*(theta[paste(n, ",", kappa, ",2")]^{"*"} - theta["0,2"]), 
                                                              ", ", n, " = ", !!Nsl, ", ", n, "*", " = ", !!nzl))))) 
 }
 
@@ -165,7 +162,7 @@ dataplot <- bind_rows(lapply(1:4, fdata))
 
 # Distances
 (outdist <- dataplot %>% group_by(s, parm, N, nz) %>% 
-    summarise(across(c("H1", "H2", "Fh"), ~ sum(abs(.x - F0))*(max(t) - min(t))/length(t))) %>% 
+    summarise(across(c("H", "Fh"), ~ sum(abs(.x - F0))*(max(t) - min(t))/length(t))) %>% 
     inner_join(dataplot %>% group_by(s, parm, N, nz) %>% 
                  summarise(Fhs = sum(abs(Fhs - F0s))*(max(t) - min(t))/length(t)), by  = c("s", "parm", "N", "nz")))
 
@@ -173,26 +170,22 @@ dataplot <- bind_rows(lapply(1:4, fdata))
 graph1        <- list()
 for (k in 1:(2*length(nvec))) {
   distF       <- format(round(outdist$Fh[k], 3), nsmall = 3)
-  distH1      <- format(round(outdist$H1[k], 3), nsmall = 3)
-  distH2      <- format(round(outdist$H2[k], 3), nsmall = 3)
+  distH       <- format(round(outdist$H[k], 3), nsmall = 3)
   graph1[[k]] <- ggplot(dataplot %>% filter(t >= -15, t <= 12, s == k), aes(x = t, y = F0)) + theme_bw() + 
     geom_line(aes(col = "A", lty = "A")) + 
     geom_line(aes(y = Fh, col = "B", lty = "B")) + 
-    geom_line(aes(y = H1, col = "C", lty = "C")) + 
-    geom_line(aes(y = H2, col = "D", lty = "D")) + 
+    geom_line(aes(y = H, col = "C", lty = "C")) + 
     facet_wrap(. ~ type, scales = "free", labeller = label_parsed) +
     xlab("") + 
     ylab(ifelse(k >= 3, "", "Probability")) + 
-    scale_colour_manual("", values = c("black", "#e01b89", "#1b1be0", "#1b1be0"), 
+    scale_colour_manual("", values = c("black", "#e01b89", "#1b1be0"), 
                         labels = c("A" = expr(F[0]), 
                                    "B" = expr(paste(hat(F)[n], " (", !!distF, ")")), 
-                                   "C" = expr(paste(hat(H)[1], " (", !!distH1, ")")),
-                                   "D" = expr(paste(hat(H)[2], " (", !!distH2, ")")))) + 
-    scale_linetype_manual("", values = c("A" = 1, "B" = 2, "C" = 3, "D" = 4),
+                                   "C" = expr(paste(hat(H)[n], " (", !!distH, ")")))) + 
+    scale_linetype_manual("", values = c("A" = 1, "B" = 2, "C" = 3),
                           labels = c("A" = expr(F[0]), 
                                      "B" = expr(paste(hat(F)[n], " (", !!distF, ")")), 
-                                     "C" = expr(paste(hat(H)[1], " (", !!distH1, ")")),
-                                     "D" = expr(paste(hat(H)[2], " (", !!distH2, ")")))) +
+                                     "C" = expr(paste(hat(H)[n], " (", !!distH, ")")))) +
     theme(legend.position = c(0.2, 0.75), legend.text.align = 0,
           legend.background = element_rect(fill='transparent'),
           legend.text = element_text(size = 8),
@@ -211,13 +204,13 @@ for (k in 1:(2*length(nvec))) {
   graph2[[k]] <- ggplot(dataplot %>% filter(t >= -12, t <= 12, s == k), aes(x = t, y = F0s)) + theme_bw() + 
     geom_line(aes(col = "A", lty = "A")) + 
     geom_line(aes(y = Fhs, col = "B", lty = "B")) + 
-    facet_wrap(. ~ type, scales = "free", labeller = label_parsed) +
+    facet_wrap(. ~ types, scales = "free", labeller = label_parsed) +
     xlab("") + 
     ylab(ifelse(k >= 3, "", "Probability")) + 
-    scale_colour_manual("", values = c("black", "#e01b89", "#1b1be0", "#1b1be0"), 
+    scale_colour_manual("", values = c("black", "#e01b89"), 
                         labels = c("A" = expr(F[0]^"*"), 
                                    "B" = expr(paste(hat(F)[n]^"*", " (", !!distF, ")")))) + 
-    scale_linetype_manual("", values = c("A" = 1, "B" = 2, "C" = 3, "D" = 4),
+    scale_linetype_manual("", values = c("A" = 1, "B" = 2),
                           labels = c("A" = expr(F[0]^"*"), 
                                      "B" = expr(paste(hat(F)[n]^"*", " (", !!distF, ")")))) +
     theme(legend.position = c(0.2, 0.9), legend.text.align = 0,
@@ -232,10 +225,42 @@ for (k in 1:(2*length(nvec))) {
 }
 
 # export figures
-ggsave("simu:poisson.pdf", path = "Simulations", plot = wrap_plots(graph1, ncol = length(nvec), byrow = FALSE), 
+ggsave("simu.poisson.pdf", path = "Simulations", plot = wrap_plots(graph1, ncol = length(nvec), byrow = FALSE), 
        device = "pdf", width = 10, height = 5)
-ggsave("simu:poissonR.pdf", path = "Simulations", plot = wrap_plots(graph2, ncol = length(nvec), byrow = FALSE), 
+ggsave("simu.poissonR.pdf", path = "Simulations", plot = wrap_plots(graph2, ncol = length(nvec), byrow = FALSE), 
        device = "pdf", width = 10, height = 5)
+
+# Coverage rates
+fcrate  <- function(s){
+  Ns    <- nvec[s]
+  nz    <- round(Ns^(c(1, 0.985, 0.945, 0.91)[nvec == Ns]))
+  datas <- out[[s]]
+  datas <- datas[!sapply(datas, is.null)]
+  sim   <- length(datas)
+  
+  IC11  <- sapply(datas, function(x) x$thetah[1] + qnorm(c(0.025, 0.05, 0.95, 0.975), 0, x$sderr[1]/sqrt(Ns)))
+  IC1   <- sapply(datas, function(x) quantile(x$thetah[1] - x$psi[1,]/sqrt(Ns), probs = c(0.025, 0.05, 0.95, 0.975), na.rm = TRUE))
+  IC1s  <- sapply(datas, function(x) quantile(x$thetahs[1] - x$psis[1,]/sqrt(Ns), probs = c(0.025, 0.05, 0.95, 0.975), na.rm = TRUE))
+  
+  IC21  <- sapply(datas, function(x) x$thetah[2] + qnorm(c(0.025, 0.05, 0.95, 0.975), 0, x$sderr[2]/sqrt(Ns)))
+  IC2   <- sapply(datas, function(x) quantile(x$thetah[2] - x$psi[2,]/sqrt(Ns), probs = c(0.025, 0.05, 0.95, 0.975), na.rm = TRUE))
+  IC2s  <- sapply(datas, function(x) quantile(x$thetahs[2] - x$psis[2,]/sqrt(Ns), probs = c(0.025, 0.05, 0.95, 0.975), na.rm = TRUE))
+  
+  crate <- c(mean(theta0[1] >= IC11[1,] & theta0[1] <= IC11[4,]), mean(theta0[1] <= IC11[3,]), mean(theta0[1] >= IC11[2,]),
+             mean(theta0[1] >= IC1[1,] & theta0[1] <= IC1[4,]), mean(theta0[1] <= IC1[3,]), mean(theta0[1] >= IC1[2,]),
+             mean(theta0[1] >= IC1s[1,] & theta0[1] <= IC1s[4,]), mean(theta0[1] <= IC1s[3,]), mean(theta0[1] >= IC1s[2,]),
+             mean(theta0[2] >= IC21[1,] & theta0[2] <= IC21[4,]), mean(theta0[2] <= IC21[3,]), mean(theta0[2] >= IC21[2,]),
+             mean(theta0[2] >= IC2[1,] & theta0[2] <= IC2[4,]), mean(theta0[2] <= IC2[3,]), mean(theta0[2] >= IC2[2,]),
+             mean(theta0[2] >= IC2s[1,] & theta0[2] <= IC2s[4,]), mean(theta0[2] <= IC2s[3,]), mean(theta0[2] >= IC2s[2,]))
+  crate <- as.data.frame(crate)
+  colnames(crate) <- paste0("N=", Ns, " N*=", nz)
+  rownames(crate) <- paste(rep(c("Theta1", "Theta2"), each = 9), paste(rep(c("Naive", "Simu", "Simu-Debiased"), each = 3), 
+                                                                       rep(c("2-Sides", "Lower 1-Side", "Upper 1 Side"), 3)))
+  as.data.frame(crate)
+}
+
+(crate  <- do.call(cbind, lapply(1:4, fcrate)))
+write.csv(crate, file = "Simulations/simu.poisson.crate.csv")
 
 # Bias
 fbias <- function(s){
@@ -259,4 +284,4 @@ fbias <- function(s){
               RMSE1 = sqrt(mean((theh - the0)^2)), MAE1 = mean(abs(theh - the0)),
               Mean2 = mean(thes), BIAS2 = mean(thes - the0), SD2 = sd(thes), 
               RMSE2 = sqrt(mean((thes - the0)^2)), MAE2 = mean(abs(thes - the0))))
-write.csv(databias, file = "Simulations/simu:poisson.bias.csv", row.names = FALSE)
+write.csv(databias, file = "Simulations/simu.poisson.bias.csv", row.names = FALSE)
